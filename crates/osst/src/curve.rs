@@ -355,7 +355,7 @@ pub mod secp256k1 {
         elliptic_curve::{
             bigint::U512,
             ops::Reduce,
-            sec1::{FromEncodedPoint, ToEncodedPoint},
+            sec1::{FromSec1Point, ToSec1Point},
             Field, PrimeField,
         },
         ProjectivePoint, Scalar,
@@ -395,14 +395,17 @@ pub mod secp256k1 {
         }
 
         fn random<R: rand_core::RngCore + rand_core::CryptoRng>(rng: &mut R) -> Self {
-            <Scalar as Field>::random(rng)
+            // k256 0.14's field RNG takes rand_core 0.10. Callers still pass 0.6.
+            let mut wide = [0u8; 64];
+            rng.fill_bytes(&mut wide);
+            Self::from_bytes_wide(&wide)
         }
 
         fn from_bytes_wide(bytes: &[u8; 64]) -> Self {
             // reduce full 512-bit value modulo curve order
             // this preserves the full entropy from the hash
             let wide = U512::from_be_slice(bytes);
-            <Scalar as Reduce<U512>>::reduce(wide)
+            <Scalar as Reduce<U512>>::reduce(&wide)
         }
 
         fn to_bytes(&self) -> [u8; 32] {
@@ -410,8 +413,7 @@ pub mod secp256k1 {
         }
 
         fn from_canonical_bytes(bytes: &[u8; 32]) -> Option<Self> {
-            let arr: &k256::FieldBytes = bytes.into();
-            Scalar::from_repr(*arr).into_option()
+            Scalar::from_repr(k256::FieldBytes::from(*bytes)).into_option()
         }
     }
 
@@ -448,7 +450,7 @@ pub mod secp256k1 {
         // use compress_vec for full 33-byte representation
         fn compress(&self) -> [u8; 32] {
             let affine = self.to_affine();
-            let encoded = affine.to_encoded_point(true);
+            let encoded = affine.to_sec1_point(true);
             let bytes = encoded.as_bytes();
             // return x-coordinate (skip the 0x02/0x03 prefix)
             let mut result = [0u8; 32];
@@ -468,15 +470,15 @@ pub mod secp256k1 {
 
         fn compress_vec(&self) -> Vec<u8> {
             let affine = self.to_affine();
-            let encoded = affine.to_encoded_point(true);
+            let encoded = affine.to_sec1_point(true);
             encoded.as_bytes().to_vec()
         }
 
         fn decompress_slice(bytes: &[u8]) -> Option<Self> {
-            use k256::EncodedPoint;
+            use k256::Sec1Point;
             if bytes.len() == 33 {
-                let encoded = EncodedPoint::from_bytes(bytes).ok()?;
-                let affine = k256::AffinePoint::from_encoded_point(&encoded);
+                let encoded = Sec1Point::from_bytes(bytes).ok()?;
+                let affine = k256::AffinePoint::from_sec1_point(&encoded);
                 if affine.is_some().into() {
                     Some(ProjectivePoint::from(affine.unwrap()))
                 } else {

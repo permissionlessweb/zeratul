@@ -40,7 +40,7 @@ curve25519-dalek = { version = "4.1", default-features = false, features = ["dig
 pasta_curves = { version = "0.5", default-features = false, features = ["alloc"], optional = true }
 
 # secp256k1 - for Bitcoin compatibility
-k256 = { version = "0.13", default-features = false, features = ["arithmetic", "ecdsa"], optional = true }
+k256 = { version = "0.14", default-features = false, features = ["arithmetic", "ecdsa"], optional = true }
 
 # blake2b for Zcash RedPallas challenge hash
 blake2b_simd = { version = "1.0", default-features = false, optional = true }
